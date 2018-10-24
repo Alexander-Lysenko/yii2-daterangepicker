@@ -1,0 +1,24 @@
+{
+    "name": "aaa/yii2-daterangepicker",
+    "description": "Bootstrap DateRangePicker widget for Yii2",
+    "type": "yii2-extension",
+    "keywords": ["yii2","extension"," bootstrap", "daterange"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "aaa",
+            "email": "aaa@aaa.aaa"
+        }
+    ],
+    "require": {
+        "yiisoft/yii2": "*",
+        "yiisoft/yii2-bootstrap": "*"
+    },
+    "require-dev": {
+    },
+    "autoload": {
+        "psr-4": {
+            "aaa\\widgets\\": ""
+        }
+    }
+}
