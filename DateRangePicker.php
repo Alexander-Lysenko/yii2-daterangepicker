@@ -4,22 +4,28 @@ namespace linjay\widgets;
 
 
 use yii\helpers\ArrayHelper;
+use yii\web\JsExpression;
 use yii\widgets\InputWidget;
 use yii\helpers\Html;
 use yii\helpers\Json;
 
 class DateRangePicker extends InputWidget
 {
+
+    /* ========== FIELDS ========== */
     public $options = ['class' => 'form-control'];
 
-    public $pluginOptions = [
+    public $pluginOptions = [];
+
+    public $defaultPluginOptions = [
         'autoUpdateInput' => false,
+        'opens' => 'left',
         'locale' => [
-            'format' => 'Y-MM-DD',
+            'format' => 'MM/DD/YYYY',
             'separator' => ' - ',
         ],
         'ranges' => [
-            'Today' => ["moment()", "moment()"],
+            'Today' => ['moment()', 'moment()'],
             'Yesterday' => ["moment().subtract(1, 'days')", "moment().subtract(1, 'days')"],
             'Last 7 Days' => ["moment().subtract(6, 'days')", "moment()"],
             'Last 30 Days' => ["moment().subtract(29, 'days')", "moment()"],
@@ -30,41 +36,21 @@ class DateRangePicker extends InputWidget
 
     public $callback;
 
-    public $convertFormat = false;
+    public $renderAsDropdown = false;
 
+    public $calendarIconClass = 'fa fa-calendar';
+
+    public $caretIconClass = 'fa fa-caret-down';
+
+    /* ========== METHODS ========== */
     public function run()
     {
+        $this->pluginOptions = ArrayHelper::merge($this->defaultPluginOptions, $this->pluginOptions);
+        $this->formatRanges();
+        $this->setStartValue();
         $this->registerAssets();
         $this->registerScripts();
-        $this->initializeOptions();
-        echo $this->renderInputHtml('text');
-    }
-
-    public function initializeOptions()
-    {
-        if ($this->convertFormat && isset($this->pluginOptions['locale']['format'])) {
-            $this->pluginOptions['locale']['format'] = static::convertDateFormat(
-                $this->pluginOptions['locale']['format']
-            );
-        }
-        $startDate = $this->pluginOptions['startDate'] ?? date($this->pluginOptions['locale']['format']);
-        $endDate = $this->pluginOptions['endDate'] ?? date($this->pluginOptions['locale']['format'], time() + 86400);
-        $this->pluginOptions = ArrayHelper::merge($this->pluginOptions, [
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-        ]);
-    }
-
-    public function renderInputHtml($type)
-    {
-        $value = '';
-        if (isset($this->pluginOptions['startDate']) && isset($this->pluginOptions['endDate'])) {
-            $value = "{$this->pluginOptions['startDate']}{$this->pluginOptions['locale']['separator']}{$this->pluginOptions['endDate']}";
-        }
-        if ($this->hasModel()) {
-            return Html::activeInput($type, $this->model, $this->attribute, ArrayHelper::merge($this->options, ['value' => $value]));
-        }
-        return Html::input($type, $this->name, $this->value, ArrayHelper::merge($this->options, ['value' => $value]));
+        echo $this->renderInputHtml($this->renderAsDropdown ? 'hidden' : 'text');
     }
 
     public function registerAssets()
@@ -73,57 +59,81 @@ class DateRangePicker extends InputWidget
         DateRangePickerAsset::register($view);
     }
 
-    public function registerScripts()
+    private function registerScripts()
     {
         $view = $this->getView();
-        $selector = $this->options['id'];
+        $selector = $this->hasModel() ? "daterangepicker-{$this->options['id']}" : "daterangepicker-{$this->name}";
         $pluginOptions = Json::encode($this->pluginOptions);
         $callbackSeparator = $this->callback ? ', ' : '';
+        $separator = 'picker.locale.separator';
+        $startDateFormat = 'picker.startDate.format(picker.locale.format)';
+        $endDateFormat = 'picker.endDate.format(picker.locale.format)';
         $js = "$('#{$selector}').daterangepicker({$pluginOptions}{$callbackSeparator}{$this->callback});";
-        $js .= "$('#{$selector}').on('apply.daterangepicker', function(ev, picker) {
-            $(this).val(picker.startDate.format('{$this->pluginOptions['locale']['format']}') + 
-            '{$this->pluginOptions['locale']['separator']}' + picker.endDate.format('{$this->pluginOptions['locale']['format']}'));
+        $js .= "$('#{$selector}').on('apply.daterangepicker', function(ev, picker) {" .
+            "$(this).find('input').val({$startDateFormat} + {$separator} + {$endDateFormat});
+            $(this).find('.daterange-value').text({$startDateFormat} + {$separator} + {$endDateFormat});
         });";
         $view->registerJs($js);
     }
 
-    protected static function convertDateFormat($format)
+    protected function setStartValue()
     {
-        return strtr($format, [
-            // meridian lowercase
-            'a' => 'p',
-            // meridian uppercase
-            'A' => 'P',
-            // second (with leading zeros)
-            's' => 'ss',
-            // minute (with leading zeros)
-            'i' => 'ii',
-            // hour in 12-hour format (no leading zeros)
-            'g' => 'H',
-            // hour in 24-hour format (no leading zeros)
-            'G' => 'h',
-            // hour in 12-hour format (with leading zeros)
-            'h' => 'HH',
-            // hour in 24-hour format (with leading zeros)
-            'H' => 'hh',
-            // day of month (no leading zero)
-            'j' => 'd',
-            // day of month (two digit)
-            'd' => 'dd',
-            // day name short is always 'D'
-            // day name long
-            'l' => 'DD',
-            // month of year (no leading zero)
-            'n' => 'm',
-            // month of year (two digit)
-            'm' => 'mm',
-            // month name short is always 'M'
-            // month name long
-            'F' => 'MM',
-            // year (two digit)
-            'y' => 'yy',
-            // year (four digit)
-            'Y' => 'yyyy',
-        ]);
+        $value = '';
+        if (isset($this->pluginOptions['startDate']) && isset($this->pluginOptions['endDate'])) {
+            $value = $this->pluginOptions['startDate'] .
+                ($this->pluginOptions['locale']['separator'] ?? ' - ') .
+                $this->pluginOptions['endDate'];
+        }
+        $this->options = ArrayHelper::merge($this->options, ['value' => $value]);
+    }
+
+    private function formatRanges()
+    {
+        $rawRanges = $this->pluginOptions['ranges'];
+        $ranges = $rawRanges;
+        foreach ($ranges as $range => $keys) {
+            foreach ($keys as $key => $rangeValue) {
+                $ranges[$range][$key] = new JsExpression($rangeValue);
+            }
+        }
+        $this->pluginOptions['ranges'] = $ranges;
+    }
+
+    protected function renderInputHtml($type)
+    {
+        $input = $this->hasModel() ? Html::activeInput($type, $this->model, $this->attribute, $this->options) :
+            Html::input($type, $this->name, $this->value, $this->options);
+
+        $dropDownContainer = Html::beginTag('div', ['class' => 'dropdown',
+                'id' => $this->hasModel() ? "daterangepicker-{$this->options['id']}" : "daterangepicker-{$this->name}"
+            ]) .
+            Html::beginTag('button', [
+                'class' => ' btn btn-default btn-block dropdown-toggle',
+                'data-toggle' => 'dropdown',
+                'aria-expanded' => 'false']) .
+            Html::tag('span', '', [
+                'class' => $this->calendarIconClass,
+                'style' => 'float:left; margin-top:.15em; padding-right: 5px'
+            ]) .
+            Html::tag('span', $this->options['value'] ?: 'Select range...', [
+                'class' => 'daterange-value'
+            ]) .
+            Html::tag('span', '', [
+                'class' => $this->caretIconClass,
+                'style' => 'float:right; margin-top:.2em; padding-left:5px']) .
+            Html::endTag('button') .
+            $input .
+            Html::endTag('div');
+
+        $inputContainer = Html::beginTag('div', ['class' => 'input-group',
+                'id' => $this->hasModel() ? "daterangepicker-{$this->options['id']}" : "daterangepicker-{$this->name}"
+            ]) .
+            Html::beginTag('div', ['class' => 'input-group-addon']) .
+            Html::tag('span', '', ['class' => $this->calendarIconClass]) .
+            Html::endTag('div') .
+            $input .
+            Html::endTag('div');
+
+        return $this->renderAsDropdown ? $dropDownContainer : $inputContainer;
     }
 }
