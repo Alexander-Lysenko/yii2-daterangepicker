@@ -20,7 +20,7 @@ This is a simple adaptation of [Bootstrap Date Range Picker](http://www.daterang
 ##### Usage with model:
 ```php
 <?= $form->field($model, 'time')->label('Time')->widget(\linjay\widgets\DateRangePicker::class, [
-    'renderAsDropdown' => false, //render as dropdown with hidden input or text input with addon
+    'presetDropdown' => false, //render as dropdown with hidden input or text input with addon
     'calendarIconClass' => 'fa fa-calendar', // calendar icon CSS class
     'caretIconClass' => 'fa fa-caret-down', // caret icon CSS class (for dropdown)
     'pluginOptions' => [ // presets for Date Range Picker javascript library
@@ -44,6 +44,11 @@ This is a simple adaptation of [Bootstrap Date Range Picker](http://www.daterang
             ]
         ],
     ],
+    'pluginEvents' => [
+        'cancel.daterangepicker' => "function() {
+            $(this).val('');
+        }",
+    ],
     // callback function (if needed)
     'callback' => "function(start, end, label) {
          console.log('New date range selected: ' + 
@@ -55,7 +60,7 @@ This is a simple adaptation of [Bootstrap Date Range Picker](http://www.daterang
 ##### Usage without model:
 ```php
 <?= \linjay\widgets\DateRangePicker::widget([
-    'renderAsDropdown' => true, //render as dropdown with hidden input or text input with addon
+    'presetDropdown' => true, //render as dropdown with hidden input or text input with addon
     'calendarIconClass' => 'fa fa-calendar', // calendar icon CSS class
     'caretIconClass' => 'fa fa-caret-down', // caret icon CSS class (for dropdown)
     'pluginOptions' => [ // presets for Date Range Picker javascript library
@@ -78,6 +83,11 @@ This is a simple adaptation of [Bootstrap Date Range Picker](http://www.daterang
                  "moment().subtract(1, 'month').endOf('month')"
             ]
         ],
+    ],
+    'pluginEvents' => [
+        'cancel.daterangepicker' => "function() {
+          $(this).val('');
+        }",
     ],
     // callback function (if needed)
     'callback' => "function(start, end, label) {

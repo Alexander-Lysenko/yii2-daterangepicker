@@ -1,9 +1,8 @@
 <?php
 
-namespace customer\widgets;
+namespace linjay\widgets;
 
 
-use customer\assets\DateRangePickerAsset;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Html;
 use yii\helpers\Json;
@@ -14,14 +13,15 @@ class DateRangePicker extends InputWidget
 {
     public $options = ['class' => 'form-control'];
     public $pluginOptions = [];
+    public $pluginEvents = [];
     public $defaultPluginOptions = [
         'autoUpdateInput' => false,
+        'alwaysShowCalendars' => true,
         'opens' => 'left',
         'locale' => [
             'format' => 'MM/DD/YYYY',
             'separator' => ' - ',
         ],
-        'alwaysShowCalendars' => true,
         'ranges' => [
             'Today' => ['moment()', 'moment()'],
             'Yesterday' => ["moment().subtract(1, 'days')", "moment().subtract(1, 'days')"],
@@ -36,10 +36,13 @@ class DateRangePicker extends InputWidget
     public $calendarIconClass = 'fa fa-calendar';
     public $caretIconClass = 'fa fa-caret-down';
 
+
     /* ========== METHODS ========== */
     public function run()
     {
+        // Non-recursive merge plugin option
         $this->pluginOptions = array_merge($this->defaultPluginOptions, $this->pluginOptions);
+
         $this->formatRanges();
         $this->setStartValue();
         $this->registerAssets();
@@ -67,6 +70,12 @@ class DateRangePicker extends InputWidget
             "$(this).find('input').val({$startDateFormat} + {$separator} + {$endDateFormat}).trigger('change');
             $(this).find('.daterange-value').text({$startDateFormat} + {$separator} + {$endDateFormat});
         });";
+        if (!empty($this->pluginEvents)) {
+            foreach ($this->pluginEvents as $event => $handler) {
+                $function = $handler instanceof JsExpression ? $handler : new JsExpression($handler);
+                $js .= "$('#{$selector}').on('{$event}', {$function});\n";
+            }
+        }
         $view->registerJs($js);
         $style = '.daterange-value {
             display: inline-block; 
@@ -103,6 +112,7 @@ class DateRangePicker extends InputWidget
 
     protected function renderInputHtml($type)
     {
+        $this->options = array_merge($this->options, ['autocomplete' => 'off']);
         $input = $this->hasModel() ? Html::activeInput($type, $this->model, $this->attribute, $this->options) :
             Html::input($type, $this->name, $this->value, $this->options);
         $dropDownContainer = Html::beginTag('div', ['class' => 'dropdown',
